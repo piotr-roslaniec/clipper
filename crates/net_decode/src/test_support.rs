@@ -13,13 +13,14 @@ use crate::{
     chomp::{EthernetChomper, FrameChomper},
     chomper,
     dispatch::{self, ListenerDispatcher},
-    http::HTTPStreamEvent,
+    http_parser::HTTPStreamEvent,
     key_db::KeyDB,
     listener::{Listener, MessageMeta, SideData, TimingInfo},
     tcp_reassemble::TcpFollower,
     tls::TLSFlowTracker,
 };
 
+pub static MY_PCAP: &'static [u8] = include_bytes!("../corpus/my_pcap.pcapng");
 pub static NYA_DSB: &'static [u8] = include_bytes!("../corpus/nya-dsb.pcapng");
 pub static H1_CONN_REUSE: &'static [u8] = include_bytes!("../corpus/http-conn-reuse.pcapng");
 pub static H2: &'static [u8] = include_bytes!("../corpus/http2-conn-reuse.pcapng");
@@ -28,6 +29,7 @@ pub static TLS13_SESSION_RESUMPTION: &'static [u8] =
     include_bytes!("../corpus/tls13-session-resumption.pcapng");
 pub static H1_UNENCRYPTED: &'static [u8] = include_bytes!("../corpus/http-80.pcapng");
 
+#[derive(Clone, Debug)]
 pub enum Received<T> {
     Message(MessageMeta, T),
     SideData(Box<dyn SideData>),

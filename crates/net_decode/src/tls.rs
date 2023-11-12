@@ -127,10 +127,10 @@ impl TLSSide {
     fn deframe(&mut self) -> Result<Option<PlainMessage>, RustlsError> {
         match self.deframer.pop(&mut self.common_state.record_layer) {
             Ok(Some(Deframed {
-                message,
-                trial_decryption_finished,
-                ..
-            })) => {
+                        message,
+                        trial_decryption_finished,
+                        ..
+                    })) => {
                 if trial_decryption_finished {
                     self.common_state.record_layer.finish_trial_decryption();
                 }
@@ -334,10 +334,10 @@ impl TLSState for WaitForFinish {
         match msg.payload {
             MessagePayload::Handshake {
                 parsed:
-                    HandshakeMessagePayload {
-                        typ: HandshakeType::EncryptedExtensions,
-                        payload: HandshakePayload::EncryptedExtensions(ref exts),
-                    },
+                HandshakeMessagePayload {
+                    typ: HandshakeType::EncryptedExtensions,
+                    payload: HandshakePayload::EncryptedExtensions(ref exts),
+                },
                 encoded: _,
             } => {
                 let protos: Option<Vec<_>> = exts.iter().find_map(|ext| match ext {
@@ -356,10 +356,10 @@ impl TLSState for WaitForFinish {
             }
             MessagePayload::Handshake {
                 parsed:
-                    HandshakeMessagePayload {
-                        typ: HandshakeType::Finished,
-                        payload: _,
-                    },
+                HandshakeMessagePayload {
+                    typ: HandshakeType::Finished,
+                    payload: _,
+                },
                 encoded: _,
             } => {
                 // FIXME: key switching
@@ -748,7 +748,7 @@ impl TLSFlowTrackerInner {
                             OkOrRetry::Ok(true) => continue,
                             OkOrRetry::Ok(false) => return OkOrRetry::Ok(()),
                             OkOrRetry::Retry(cr) => {
-                                return OkOrRetry::Retry((cr, Queued::Message(msg)))
+                                return OkOrRetry::Retry((cr, Queued::Message(msg)));
                             }
                         }
                     }
@@ -764,8 +764,51 @@ impl TLSFlowTrackerInner {
     }
 }
 
+use tracing_test::traced_test;
+use std::io::Cursor;
+
+use super::*;
+use crate::{
+    chomp::{dump_pcap, EthernetChomper},
+    test_support::*,
+};
+
+pub fn inorder_test(f: &[u8]) -> Vec<Received<Vec<u8>>> {
+    let mut reader = Cursor::new(f);
+    let key_db: Arc<RwLock<KeyDB>> = Default::default();
+    let received = Arc::new(RwLock::new(Vec::new()));
+    let mut chomper = tls_chomper(key_db, received.clone());
+
+    // Use this to parse your pcap
+    dump_pcap(&mut reader, &mut chomper).unwrap();
+    let mut lock = received.write().unwrap();
+    let bytes = std::mem::take(&mut *lock);
+    println!("{:?}", bytes.to_vec());
+    bytes
+}
+
+pub fn reorder_test<T: Listener<Vec<u8>>>(
+    f: &[u8],
+    make_chomper: impl FnOnce(
+        Arc<RwLock<KeyDB>>,
+        Arc<RwLock<Vec<Received<Vec<u8>>>>>,
+    ) -> EthernetChomper<T>,
+) -> Vec<Received<Vec<u8>>> {
+    let mut reader = Cursor::new(f);
+    let key_db: Arc<RwLock<KeyDB>> = Default::default();
+    let received = Arc::new(RwLock::new(Vec::new()));
+    let mut chomper = make_chomper(key_db, received.clone());
+    let mut chomper2 = KeyMessageReorderer::default();
+
+    dump_pcap(&mut reader, &mut chomper2).unwrap();
+    chomper2.send_late_keys(&mut chomper).unwrap();
+    let mut lock = received.write().unwrap();
+    std::mem::take(&mut *lock)
+}
+
 #[cfg(test)]
 mod test {
+    use tracing_test::traced_test;
     use std::io::Cursor;
 
     use super::*;
@@ -774,41 +817,30 @@ mod test {
         test_support::*,
     };
 
-    fn inorder_test(f: &[u8]) -> Vec<Received<Vec<u8>>> {
-        let mut reader = Cursor::new(f);
-        let key_db: Arc<RwLock<KeyDB>> = Default::default();
-        let received = Arc::new(RwLock::new(Vec::new()));
-        let mut chomper = tls_chomper(key_db, received.clone());
-
-        dump_pcap(&mut reader, &mut chomper).unwrap();
-        let mut lock = received.write().unwrap();
-        std::mem::take(&mut *lock)
-    }
-
-    fn reorder_test<T: Listener<Vec<u8>>>(
-        f: &[u8],
-        make_chomper: impl FnOnce(
-            Arc<RwLock<KeyDB>>,
-            Arc<RwLock<Vec<Received<Vec<u8>>>>>,
-        ) -> EthernetChomper<T>,
-    ) -> Vec<Received<Vec<u8>>> {
-        let mut reader = Cursor::new(f);
-        let key_db: Arc<RwLock<KeyDB>> = Default::default();
-        let received = Arc::new(RwLock::new(Vec::new()));
-        let mut chomper = make_chomper(key_db, received.clone());
-        let mut chomper2 = KeyMessageReorderer::default();
-
-        dump_pcap(&mut reader, &mut chomper2).unwrap();
-        chomper2.send_late_keys(&mut chomper).unwrap();
-        let mut lock = received.write().unwrap();
-        std::mem::take(&mut *lock)
-    }
 
     #[test]
+    #[traced_test]
     fn test_decryption_inorder() {
         check(
             expect_test::expect_file!("./test_output/tls/nya_dsb_inorder"),
             &inorder_test(NYA_DSB),
+        );
+    }
+
+    #[test]
+    #[traced_test]
+    fn test_my_pcap_inorder() {
+        check(
+            expect_test::expect_file!("./test_output/tls/my_pcap"),
+            &inorder_test(MY_PCAP),
+        );
+    }
+
+    #[test]
+    fn test_my_pcap_reorder() {
+        check(
+            expect_test::expect_file!("./test_output/tls/my_pcap"),
+            &*reorder_test(MY_PCAP, tls_chomper),
         );
     }
 

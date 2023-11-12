@@ -318,7 +318,6 @@ where
                             }
                             _ => {}
                         }
-                        // println!("{:?}", block);
                     }
                     _ => unimplemented!(),
                 }
@@ -331,6 +330,8 @@ where
             Err(e) => panic!("error while parsing pcap {e:?}"),
         }
     }
+    
+    println!("Parsed {} packets", packet_count);
 
     Ok(())
 }

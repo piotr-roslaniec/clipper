@@ -53,6 +53,7 @@ impl<T: fmt::Debug + Any + Sized + Send + Sync + DynClone> SideData for T {
 
 dyn_clone::clone_trait_object!(SideData);
 
+#[derive(Clone, Debug)]
 pub struct MessageMeta {
     pub timing: TimingInfo,
     pub target: IPTarget,

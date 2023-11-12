@@ -6,7 +6,7 @@ use std::sync::{Arc, RwLock};
 
 use chomp::EthernetChomper;
 use dispatch::ListenerDispatcher;
-use http::{HTTPRequestTracker, HTTPStreamEvent};
+use crate::http_parser::{HTTPRequestTracker, HTTPStreamEvent};
 use key_db::KeyDB;
 use listener::Listener;
 use tcp_reassemble::TcpFollower;
@@ -14,12 +14,12 @@ use tls::TLSFlowTracker;
 
 pub mod chomp;
 pub mod dispatch;
-pub mod http;
+pub mod http_parser;
 pub mod key_db;
 pub mod listener;
 pub mod tcp_reassemble;
-#[cfg(test)]
-mod test_support;
+// #[cfg(test)]
+pub mod test_support;
 pub mod tls;
 
 type Error = Box<dyn std::error::Error + Send + Sync>;

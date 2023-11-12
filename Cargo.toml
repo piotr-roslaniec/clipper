@@ -8,3 +8,10 @@ resolver = "2"
 
 [patch.crates-io]
 pcap-parser = { git = "https://github.com/lf-/pcap-parser", branch = "jade/fix-options-correctly" }
+
+[patch.crates-io.ring]
+path = "../ring-xous"
+features = ["std"]
+
+[patch.crates-io.sct]
+path = "../sct.rs"

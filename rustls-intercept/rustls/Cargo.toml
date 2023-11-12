@@ -17,9 +17,9 @@ rustversion = { version = "1.0.6", optional = true }
 
 [dependencies]
 log = { version = "0.4.4", optional = true }
-ring = "0.16.20"
-sct = "0.7.0"
-webpki = { package = "rustls-webpki", version = "0.100.0", features = ["alloc", "std"] }
+ring = { path = "../../../ring-xous", features = ["std"] }
+sct = { path = "../../../sct.rs" }
+webpki = { path = "../../../webpki", package = "rustls-webpki", features = ["alloc", "std"] }
 
 [features]
 default = ["logging", "tls12"]
